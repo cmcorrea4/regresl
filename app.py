@@ -153,83 +153,52 @@ ax3.legend()
 ax3.grid(True, linestyle="--", alpha=0.4)
 st.pyplot(fig3)
 
-# ── Sección 4: Modelo Keras/TensorFlow ───────────────────────────────────────
-st.header("4. Equivalente con Keras / TensorFlow (Deep Learning)")
+# ── Sección 4: Equivalente Keras (explicación conceptual) ────────────────────
+st.header("4. Equivalente con Keras / TensorFlow")
 
-with st.expander("ℹ️ ¿Qué hace este modelo?", expanded=False):
-    st.markdown(
+st.info(
+    "💡 **Concepto:** Una red neuronal con 1 capa `Dense(1, activation='linear')` "
+    "es matemáticamente equivalente a una regresión lineal. "
+    "El modelo de sklearn arriba ya realiza el mismo cálculo de forma más eficiente. "
+    "Para ejecutar la versión Keras, corre el notebook original en Google Colab."
+)
+
+with st.expander("Ver código Keras equivalente"):
+    st.code(
         """
-        Se entrena una **red neuronal mínima** (1 capa Dense con 1 neurona y activación lineal),
-        equivalente a una regresión lineal. Los datos se normalizan con `StandardScaler` antes del entrenamiento.
-        """
+from sklearn.preprocessing import StandardScaler
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, Input
+
+X = df[["area"]].values
+y = df[["price"]].values
+
+scaler_X = StandardScaler()
+scaler_y = StandardScaler()
+X_scaled = scaler_X.fit_transform(X)
+y_scaled = scaler_y.fit_transform(y)
+
+model = Sequential([
+    Input(shape=(1,)),
+    Dense(1, activation="linear"),
+])
+model.compile(
+    optimizer=tf.keras.optimizers.SGD(learning_rate=0.1),
+    loss="mse"
+)
+model.fit(X_scaled, y_scaled, epochs=500, verbose=0)
+
+# Predicción para 3500 m²
+new_area_scaled = scaler_X.transform([[3500]])
+pred_scaled = model.predict(new_area_scaled)
+precio = scaler_y.inverse_transform(pred_scaled)[0][0]
+print(f"Precio estimado: {precio:,.0f}")
+        """,
+        language="python",
     )
-
-col_keras1, col_keras2 = st.columns(2)
-epochs    = col_keras1.slider("Épocas de entrenamiento", 50, 1000, 500, step=50)
-lr        = col_keras2.select_slider("Learning rate (SGD)", [0.001, 0.01, 0.05, 0.1, 0.5], value=0.1)
-run_keras = st.button("🚀 Entrenar modelo Keras", type="primary")
-
-if run_keras:
-    try:
-        import tensorflow as tf
-        from tensorflow.keras.models import Sequential
-        from tensorflow.keras.layers import Dense, Input
-
-        X_np = df[["area"]].values.astype(float)
-        y_np = df[["price"]].values.astype(float)
-
-        scaler_X = StandardScaler()
-        scaler_y = StandardScaler()
-        X_scaled = scaler_X.fit_transform(X_np)
-        y_scaled = scaler_y.fit_transform(y_np)
-
-        model = Sequential([
-            Input(shape=(1,)),
-            Dense(1, activation="linear"),
-        ])
-        model.compile(
-            optimizer=tf.keras.optimizers.SGD(learning_rate=lr),
-            loss="mse",
-        )
-
-        with st.spinner(f"Entrenando por {epochs} épocas..."):
-            history = model.fit(X_scaled, y_scaled, epochs=epochs, verbose=0)
-
-        # Métricas
-        y_pred_scaled = model.predict(X_scaled, verbose=0)
-        y_pred_keras  = scaler_y.inverse_transform(y_pred_scaled)
-        mse_k  = mean_squared_error(y_np, y_pred_keras)
-        rmse_k = np.sqrt(mse_k)
-        r2_k   = r2_score(y_np, y_pred_keras)
-
-        ck1, ck2, ck3 = st.columns(3)
-        ck1.metric("MSE (Keras)", f"{mse_k:,.2f}")
-        ck2.metric("RMSE (Keras)", f"{rmse_k:,.2f}")
-        ck3.metric("R² (Keras)", f"{r2_k:.4f}")
-
-        # Curva de pérdida
-        fig4, ax4 = plt.subplots(figsize=(8, 3))
-        ax4.plot(history.history["loss"], color="#FF6D00", linewidth=1.5)
-        ax4.set_xlabel("Épocas", fontsize=11)
-        ax4.set_ylabel("Loss (MSE)", fontsize=11)
-        ax4.set_title("Curva de pérdida durante el entrenamiento", fontsize=12, fontweight="bold")
-        ax4.grid(True, linestyle="--", alpha=0.4)
-        st.pyplot(fig4)
-
-        # Predicción con Keras
-        st.subheader("Predicción con Keras")
-        area_k = st.number_input("Área a predecir (m²)", value=3500, step=100, key="keras_pred")
-        new_area_scaled = scaler_X.transform(np.array([[area_k]]))
-        new_price_scaled = model.predict(new_area_scaled, verbose=0)
-        new_price = scaler_y.inverse_transform(new_price_scaled)[0][0]
-        st.success(f"Para **{area_k} m²** → Precio estimado (Keras): **${new_price:,.0f}**")
-
-    except ImportError:
-        st.error(
-            "TensorFlow no está instalado en este entorno. "
-            "Instálalo con: `pip install tensorflow`"
-        )
 
 # ── Footer ────────────────────────────────────────────────────────────────────
 st.divider()
 st.caption("Workshop de Machine Learning · Regresión Lineal · Basado en el notebook original")
+
